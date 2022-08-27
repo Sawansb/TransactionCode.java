@@ -1,0 +1,84 @@
+
+
+package jdbcpackage;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+public class ConTest {
+	public static void main(String[] args) {
+		Connection connection = null;
+		try {
+		Class.forName("com.mysql.cj.jdbc.Driver");
+		connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/sawan","root","root");
+		connection.setAutoCommit(false);
+		
+		
+		BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
+		System.out.println("Enter Sender's Account Number : ");
+		int sender_account_Number = Integer.parseInt(bufferedReader.readLine());
+		
+		System.out.println("Enter receiver's Account Number : ");
+		int receiver_account_Number = Integer.parseInt(bufferedReader.readLine());
+		
+		System.out.println("Enter Amount to Send : ");
+		int amount_to_send = Integer.parseInt(bufferedReader.readLine());
+		
+		PreparedStatement preparedStatement1 = connection.prepareStatement("update account set amount = amount+? where id =? ");
+		PreparedStatement preparedStatement2 = connection.prepareStatement("update account set amount = amount-? where id =? ");
+		
+		Statement statement = connection.createStatement();
+		ResultSet rs =  statement.executeQuery("Select Amount from account where id="+sender_account_Number);
+		
+		int available_amount = 0;
+		
+		if (rs.next()) {
+			available_amount=rs.getInt("amount");
+			
+			if (available_amount>amount_to_send) {
+				preparedStatement1.setInt(1, amount_to_send);
+				preparedStatement1.setInt(2, receiver_account_Number);
+				preparedStatement1.executeUpdate();
+				
+				//This is the exception between the Transaction 
+				// int f =4/0;
+				
+				preparedStatement2.setInt(1, amount_to_send);
+				preparedStatement2.setInt(2, sender_account_Number);
+				preparedStatement2.executeUpdate();
+				
+				connection.setAutoCommit(true);
+				System.out.println("Transaction Completed..");
+
+				
+			}
+			else {
+				System.out.println("Insufficient Balance ....");
+			}
+		}
+		
+
+		}
+		catch (Exception e) {
+			try {
+				// If the exception occurs between the transaction we will rollback the query and it will not affect in our database
+				System.out.println("Rolling Back.....");
+				connection.rollback();
+			} catch (Exception e2) {
+			}
+		}
+		finally {
+			try {
+				connection.close();
+			} catch (SQLException e) {
+
+				e.printStackTrace();
+			}
+		}
+	}
+}
